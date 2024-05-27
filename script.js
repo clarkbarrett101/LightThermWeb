@@ -239,8 +239,8 @@ function measureCanvas() {
     average[2] += readings[i][2];
   }
   average[0] = 127;
-  average[1] = Math.round(average[1] / readings.length);
-  average[2] = Math.round(average[2] / readings.length);
+  average[1] /= readings.length;
+  average[2] /= readings.length;
   return average;
 }
 let black = false;
@@ -272,10 +272,9 @@ function CalculateTemp(data) {
   for (let i = 0; i < data.length - 1; i += 2) {
     try {
       let uDiff = Math.abs(data[i][1] - data[i + 1][1]);
-      console.log(uDiff);
       let vDiff = Math.abs(data[i][2] - data[i + 1][2]);
-      console.log(vDiff);
       let uvDiff = Math.sqrt(uDiff ** 2 + vDiff ** 2);
+      console.log(uvDiff);
       if (uvDiff < diff) {
         diff = uvDiff;
         diffIndex = i;
