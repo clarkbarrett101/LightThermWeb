@@ -2,17 +2,21 @@ const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
 const ctx = canvas.getContext("2d");
 canvas.willReadFrequently = true;
+canvas.hidden = true;
 
-const uvCanvas = document.createElement("canvas");
-document.body.appendChild(uvCanvas);
-const uvCtx = uvCanvas.getContext("2d");
-uvCanvas.width = 255;
-uvCanvas.height = 255;
-uvCanvas.style.position = "absolute";
-uvCanvas.style.top = "0";
-uvCanvas.style.left = "0";
-uvCanvas.style.zIndex = "1000";
-uvCanvas.willReadFrequently = true;
+const button = document.createElement("button");
+button.innerText = "Start";
+button.addEventListener("click", () => {
+  StartSququence();
+});
+document.body.appendChild(button);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Space") {
+    StartSququence();
+  }
+});
+
+let uvReadings = [];
 
 const vidCanvas = document.createElement("canvas");
 vidCanvas.willReadFrequently = true;
@@ -30,36 +34,44 @@ let color = "#000000";
 let kelvin = 1000;
 
 function FlashCanvas(hexColor) {
+  canvas.hidden = false;
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   ctx.fillStyle = hexColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
-function DrawUVMatrix() {
-  uvCtx.clearRect(0, 0, uvCanvas.width, uvCanvas.height);
-  for (let i = 0; i < uvCanvas.width; i++) {
-    for (let j = 0; j < uvCanvas.height; j++) {
-      const l = 0.5;
-      const u = (j - uvCanvas.width / 2) / uvCanvas.width;
-      const v = (i - uvCanvas.height / 2) / uvCanvas.height;
 
-      const rgb = LUV2RGB(l, u, v);
-      uvCtx.fillStyle = `rgb(${rgb[0] * 255}, ${rgb[1] * 255}, ${
-        rgb[2] * 255
-      })`;
-      uvCtx.fillRect(i, j, 1, 1);
-    }
-  }
-  uvCtx.fillStyle = "black";
-  uvCtx.arc(
-    color[1] + uvCanvas.width / 2,
-    color[2] + uvCanvas.height / 2,
-    3,
+function UVVideo() {
+  vidCanvas.width = video.videoWidth;
+  vidCanvas.height = video.videoHeight;
+  vidCtx.drawImage(video, 0, 0, vidCanvas.width, vidCanvas.height);
+  vidCanvas.hidden = false;
+  vidCanvas.width = 100;
+  vidCanvas.height = 100;
+  vidCtx.drawImage(video, 0, 0, 100, 100);
+  const imageData = vidCtx.getImageData(
     0,
-    2 * Math.PI,
-    true
+    0,
+    vidCanvas.width,
+    vidCanvas.height
   );
-  uvCtx.fill();
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    const rgb = [
+      imageData.data[i],
+      imageData.data[i + 1],
+      imageData.data[i + 2],
+    ];
+    const luv = RGB2LUV(rgb);
+    luv[0] = 150;
+    const hex = LUV2HEX(luv);
+    vidCtx.fillStyle = hex;
+    vidCtx.fillRect((i / 4) % vidCanvas.width, i / 4 / vidCanvas.width, 1, 1);
+  }
+  vidCtx.rect(0, 0, vidCanvas.width, vidCanvas.height);
+  vidCtx.strokeStyle = black ? RGB2HEX(kelvin_table[kelvin]) : "#000000";
+  vidCtx.strokeWidth = 10;
+  vidCtx.stroke();
+  uvReadings.push(vidCtx.getImageData(0, 0, vidCanvas.width, vidCanvas.height));
 }
 
 const kelvin_table = {
@@ -245,43 +257,57 @@ function measureCanvas() {
 }
 let black = false;
 let measurements = [];
-setInterval(() => {
-  if (kelvin > 8000) {
-    return;
+function StartSququence() {
+  setInterval(() => {
+    if (kelvin > 8000) {
+      return;
+    }
+    measurements.push(measureCanvas());
+    UVVideo();
+    //DrawUVMatrix();
+    if (black) {
+      FlashCanvas("#000000");
+      black = false;
+    } else {
+      FlashCanvas(RGB2HEX(kelvin_table[kelvin]));
+      kelvin += 500;
+      black = true;
+    }
+    if (kelvin > 8000) {
+      let index = CalculateTemp(measurements);
+      const temp = 1000 + index * 400;
+      console.log(temp);
+      // DrawUVReadings();
+    }
+  }, 400);
+}
+function DrawUVReadings() {
+  for (let i = 0; i < uvReadings.length; i++) {
+    ctx.putImageData(uvReadings[i], (i % 11) * 100, Math.floor(i / 11) * 100);
   }
-  kelvin += 100;
-  measurements.push(measureCanvas());
-  //DrawUVMatrix();
-  if (black) {
-    FlashCanvas("#000000");
-    black = false;
-  } else {
-    FlashCanvas(RGB2HEX(kelvin_table[kelvin]));
-    black = true;
-  }
-  if (kelvin > 8000) {
-    let index = CalculateTemp(measurements);
-    const temp = 1000 + index * 100;
-    FlashCanvas(RGB2HEX(kelvin_table[temp]));
-    console.log(temp);
-  }
-}, 100);
+}
 function CalculateTemp(data) {
   let diff = 100;
   let diffIndex = 0;
+  let diffArray = [];
   for (let i = 0; i < data.length - 1; i += 2) {
-    try {
-      let uDiff = Math.abs(data[i][1] - data[i + 1][1]);
-      let vDiff = Math.abs(data[i][2] - data[i + 1][2]);
-      let uvDiff = Math.sqrt(uDiff ** 2 + vDiff ** 2);
-      console.log(uvDiff);
-      if (uvDiff < diff) {
-        diff = uvDiff;
-        diffIndex = i;
-      }
-    } catch (e) {
-      console.log(e, i, data.length);
+    let uDiff = Math.abs(data[i][1] - data[i + 1][1]);
+    let vDiff = Math.abs(data[i][2] - data[i + 1][2]);
+    let uvDiff = Math.sqrt(uDiff ** 2 + vDiff ** 2);
+    diffArray.push(uvDiff);
+  }
+  let diffArrayNormal = [];
+  diffArrayNormal.push(diffArray[0]);
+  for (let i = 1; i < diffArray.length - 1; i++) {
+    diffArrayNormal.push((diffArray[i] + diffArray[i + 1]) / 2);
+  }
+  diffArrayNormal.push(diffArray[diffArray.length - 1]);
+  console.log(diffArrayNormal);
+  for (let i = diffArrayNormal.length; i > 0; i--) {
+    if (diffArrayNormal[i] < diff) {
+      diff = diffArrayNormal[i];
+      diffIndex = i;
     }
   }
-  return diffIndex / 2;
+  return diffIndex;
 }
