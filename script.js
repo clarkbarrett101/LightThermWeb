@@ -73,6 +73,15 @@ function UVVideo() {
   vidCtx.stroke();
   uvReadings.push(vidCtx.getImageData(0, 0, vidCanvas.width, vidCanvas.height));
 }
+function inbetweenKelvin(kelvin){
+ let start = Math.floor(kelvin/100)*100;
+  let end = Math.ceil(kelvin/100)*100;
+  let rgb1 = kelvin_table[start];
+  let rgb2 = kelvin_table[end];
+  let sum = [rgb1[0]+rgb2[0], rgb1[1]+rgb2[1], rgb1[2]+rgb2[2]];
+  sum = [sum[0]/2, sum[1]/2, sum[2]/2];
+  return sum;
+}
 
 const kelvin_table = {
   1000: [255, 56, 0],
@@ -310,4 +319,17 @@ function CalculateTemp(data) {
     }
   }
   return diffIndex;
+}
+const round1 = [1000,3000,5000,7000,9000];
+const round2 = [500,1000,1500];
+const round3 = [100,200,300,400];
+function sequenceOrder() {
+  let readings = [];
+  let diff=100;
+  let range = [0,1];
+  for (let i = 0; i < round1.length; i++) {
+    readings.push(measureCanvas());
+    
+  }
+  return order;
 }
